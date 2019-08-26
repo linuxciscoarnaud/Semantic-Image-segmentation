@@ -38,11 +38,11 @@ public class NetworkConfig {
 				.l2(5e-5)
 				.miniBatch(true)
 				.cacheMode(params.getCacheMode())
-                .trainingWorkspaceMode(params.getWorkspaceMode())
-                .inferenceWorkspaceMode(params.getWorkspaceMode())
+                                .trainingWorkspaceMode(params.getWorkspaceMode())
+                                .inferenceWorkspaceMode(params.getWorkspaceMode())
 				.graphBuilder()
 				.addInputs("input")
-                .setInputTypes(InputType.convolutional(params.getHeight(), params.getWidth(), params.getChannels()))
+                                .setInputTypes(InputType.convolutional(params.getHeight(), params.getWidth(), params.getChannels()))
 				
                 // Contracting path
                 

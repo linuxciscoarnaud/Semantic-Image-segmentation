@@ -278,11 +278,11 @@ public class NetworkConfig {
                 		.build(), "conv9-3")
                 
                 .addLayer("output", new CnnLossLayer.Builder(LossFunctions.LossFunction.XENT)
-                        .activation(Activation.SIGMOID)
-                        .build(), "conv10")
+                                .activation(Activation.SIGMOID)
+                                .build(), "conv10")
                 
-				.setOutputs("output")
-				.build();
+		.setOutputs("output")
+		.build();
 				
 		return new ComputationGraph(conf);		
 	}

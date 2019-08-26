@@ -284,6 +284,6 @@ public class NetworkConfig {
 		.setOutputs("output")
 		.build();
 				
-		return new ComputationGraph(conf);		
+	    return new ComputationGraph(conf);		
 	}
 }

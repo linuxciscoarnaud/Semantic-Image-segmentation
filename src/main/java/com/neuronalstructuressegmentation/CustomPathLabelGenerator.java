@@ -18,7 +18,7 @@ import org.datavec.image.loader.NativeImageLoader;
 
 public class CustomPathLabelGenerator implements PathLabelGenerator {
 
-	NativeImageLoader imageLoader = new NativeImageLoader(512, 512, 1);
+	NativeImageLoader imageLoader = new NativeImageLoader(512, 512, 1); // 1 because the labels are 1 channel segmented images
 	Writable ndArrayWritable = null;
 	
 	public CustomPathLabelGenerator() {}

@@ -22,6 +22,7 @@ public class Params {
 
 	// Parameters for network configuration
 	private OptimizationAlgorithm optimizationAlgorithm = OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT;
+	private Activation activation = Activation.RELU;
 	private WeightInit weightInit = WeightInit.RELU;
 	private IUpdater updater = new AdaDelta();
 	private CacheMode cacheMode = CacheMode.NONE;
@@ -45,6 +46,10 @@ public class Params {
 	
 	public OptimizationAlgorithm getOptimizationAlgorithm() {
 		return optimizationAlgorithm;
+	}
+	
+	public Activation getActivation() {
+		return activation;
 	}
 	
 	public WeightInit getWeightInit() {

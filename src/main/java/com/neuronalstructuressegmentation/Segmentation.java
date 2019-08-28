@@ -6,6 +6,7 @@ package com.neuronalstructuressegmentation;
 import java.io.File;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static java.lang.Math.toIntExact;
 
@@ -17,9 +18,17 @@ import org.datavec.image.recordreader.ImageRecordReader;
 import org.datavec.image.transform.ImageTransform;
 import org.datavec.image.transform.PipelineImageTransform;
 import org.datavec.image.transform.RotateImageTransform;
+import org.datavec.image.transform.ScaleImageTransform;
 import org.datavec.image.transform.WarpImageTransform;
 import org.deeplearning4j.api.storage.StatsStorage;
 import org.deeplearning4j.datasets.datavec.RecordReaderDataSetIterator;
+import org.deeplearning4j.earlystopping.EarlyStoppingConfiguration;
+import org.deeplearning4j.earlystopping.EarlyStoppingResult;
+import org.deeplearning4j.earlystopping.saver.LocalFileGraphSaver;
+import org.deeplearning4j.earlystopping.scorecalc.DataSetLossCalculator;
+import org.deeplearning4j.earlystopping.termination.MaxEpochsTerminationCondition;
+import org.deeplearning4j.earlystopping.termination.MaxTimeIterationTerminationCondition;
+import org.deeplearning4j.earlystopping.trainer.EarlyStoppingGraphTrainer;
 import org.deeplearning4j.eval.Evaluation;
 import org.deeplearning4j.nn.conf.inputs.InputType;
 import org.deeplearning4j.nn.graph.ComputationGraph;
@@ -57,7 +66,7 @@ public class Segmentation {
 		
 		// Loading the data		
 		System.out.println("Loading data....");		
-		CustomPathLabelGenerator multiPathlabelMaker = new CustomPathLabelGenerator();
+		CustomPathLabelGenerator labelMaker = new CustomPathLabelGenerator();
 		
 		File mainTrainDataPath = new File(System.getProperty("user.dir"), "/src/main/resources/SplitData/Train/");
 		File mainTestDataPath = new File(System.getProperty("user.dir"), "/src/main/resources/SplitData/Test/");
@@ -67,6 +76,8 @@ public class Segmentation {
 		
 		int numExamples = toIntExact(trainFileSplit.length());
 		int numTest = toIntExact(testFileSplit.length());		
+		log.info("Number of images: " + numExamples);
+		log.info("Number of Test: " + numTest);
 		
 		RandomPathFilter trainPathFilter = new RandomPathFilter(params.getRng(), null, numExamples);
 		RandomPathFilter testPathFilter = new RandomPathFilter(params.getRng(), null, numTest);
@@ -76,23 +87,32 @@ public class Segmentation {
 		
 		InputSplit trainData = trainInputSplit[0];
 		InputSplit testData = testInputSplit[0];		
+		log.info("Train data: " + trainData.length());
+		log.info("Test data: " + testData.length());
 		
-		// Data transformation/augmentation
-		// But data augmentation isn't enough yet. Still need shift/translation...
-        ImageTransform warpTransform = new WarpImageTransform(params.getRng(), 42);      
-        ImageTransform rotateTransform = new RotateImageTransform(params.getRng(), 42);
+		// Data augmentation
+		// What do we need? Shift, Rotation, Deformation
+        ImageTransform warpTransform = new WarpImageTransform(42);      
+        ImageTransform rotateTransform1 = new RotateImageTransform(30);
+        ImageTransform rotateTransform2 = new RotateImageTransform(60);
+        ImageTransform rotateTransform3 = new RotateImageTransform(60);
+        ImageTransform scaleTransform = new ScaleImageTransform(5);
         boolean shuffle = true;
         List<Pair<ImageTransform,Double>> pipeline = Arrays.asList(new Pair<>(warpTransform,0.9),
-        		                                                   new Pair<>(rotateTransform,0.9));        
+        		                                                   new Pair<>(rotateTransform1,0.9),
+        		                                                   new Pair<>(rotateTransform2,0.9),
+        		                                                   new Pair<>(rotateTransform3,0.9),
+        		                                                   new Pair<>(scaleTransform,0.9));        
         ImageTransform transform = new PipelineImageTransform(pipeline,shuffle);       
         
 		ImageRecordReader trainRecordReader = new ImageRecordReader(params.getHeight(), 
 				                                                    params.getWidth(), 
 				                                                    params.getChannels(), 
-				                                                    multiPathlabelMaker); 
+				                                                    labelMaker); 
 		ImageRecordReader testRecordReader = new ImageRecordReader(params.getHeight(), 
 				                                                   params.getWidth(), 
-				                                                   params.getChannels()); 
+				                                                   params.getChannels(),
+				                                                   labelMaker); 
 		
 		trainRecordReader.initialize(trainData, transform); 
 		testRecordReader.initialize(testData);
@@ -118,44 +138,50 @@ public class Segmentation {
 		// Building model...        
         log.info("Building model....");        
         ComputationGraph network;
-		String modelFilename = "segmentationModel.zip";
+		String modelFilename = "segmentationU-netModel.zip";
 		
 		if (new File(modelFilename).exists()) {
 			log.info("Loading existing model...");
 			network = ModelSerializer.restoreComputationGraph(modelFilename);
 		} else {
 			network = new NetworkConfig().getNetworkConfig();
-			network.addListeners(new PerformanceListener(1), new ScoreIterationListener(1));;
+			network.addListeners(new ScoreIterationListener(1));
 			network.init();
 			log.info(network.summary(InputType.convolutional(params.getHeight(), params.getWidth(), params.getChannels())));
         	
-        	// Training model...       	
-            log.info("Training model....");           
-            startTrainTime = System.currentTimeMillis();
-            for (int i = 1; i <= params.getEpochs(); i++) {
-            	trainDataIter.reset();
-            	while (trainDataIter.hasNext()) {
-            		network.fit(trainDataIter);
-            	}
-            	log.info("*** Epoch " + i + " completed." );
-            }
-            endTrainTime = System.currentTimeMillis();
-            log.info("****************End of Training********************");
-	        System.out.println();
-	        log.info("Training time : " + (endTrainTime - startTrainTime) / 60000.0 + " min");
-	        System.out.println();
+		    //Configuring early stopping
+			EarlyStoppingConfiguration<ComputationGraph> esConf = new EarlyStoppingConfiguration.Builder<ComputationGraph>()
+					.epochTerminationConditions(new MaxEpochsTerminationCondition(params.getEpochs()))
+					.iterationTerminationConditions(new MaxTimeIterationTerminationCondition(params.getMaxTimeIterTerminationCondition(), TimeUnit.HOURS))
+					.scoreCalculator(new DataSetLossCalculator(testDataIter, true))
+					.evaluateEveryNEpochs(1)
+					.modelSaver(new LocalFileGraphSaver(new File(System.getProperty("user.dir")).toString()))
+					.build();
+			
+			EarlyStoppingGraphTrainer trainer = new EarlyStoppingGraphTrainer(esConf, network, trainDataIter);
+			
+			// Conducting early stopping training of the model...
+			log.info("Training model....");
+			EarlyStoppingResult<ComputationGraph> result = trainer.fit();
 	        
-	        // Saving saving model...	        
-	        log.info("Saving model....");	        
+	        // Saving the best model...	        
+	        log.info("Saving the best model....");
+	        //Get the best model:
+	        network = result.getBestModel();
 	        if (save) {
 	        	ModelSerializer.writeModel(network, modelFilename, true);
 	        }
 	        System.out.println();
-	        log.info("Model has been saved....");
+	        log.info("The best model has been saved....");
+	        System.out.println();
+	        
+	        //Getting the results...
+			System.out.println("Termination reason: " + result.getTerminationReason());
+			System.out.println("Termination details: " + result.getTerminationDetails());
+			System.out.println("Total epochs: " + result.getTotalEpochs());
+			System.out.println("Best epoch number: " + result.getBestModelEpoch());
+			System.out.println("Score at best epoch: " + result.getBestModelScore());
 		}
-		
-		// Evaluating model...       
-        //log.info("Evaluating model....");
         
 	}
 		

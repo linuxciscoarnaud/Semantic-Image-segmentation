@@ -92,18 +92,18 @@ public class Segmentation {
 		
 		// Data augmentation
 		// What do we need? Shift, Rotation, Deformation
-        ImageTransform warpTransform = new WarpImageTransform(42);      
-        ImageTransform rotateTransform1 = new RotateImageTransform(30);
-        ImageTransform rotateTransform2 = new RotateImageTransform(60);
-        ImageTransform rotateTransform3 = new RotateImageTransform(60);
-        ImageTransform scaleTransform = new ScaleImageTransform(5);
-        boolean shuffle = true;
-        List<Pair<ImageTransform,Double>> pipeline = Arrays.asList(new Pair<>(warpTransform,0.9),
+                ImageTransform warpTransform = new WarpImageTransform(42);      
+                ImageTransform rotateTransform1 = new RotateImageTransform(30);
+                ImageTransform rotateTransform2 = new RotateImageTransform(60);
+                ImageTransform rotateTransform3 = new RotateImageTransform(60);
+                ImageTransform scaleTransform = new ScaleImageTransform(5);
+                boolean shuffle = true;
+                List<Pair<ImageTransform,Double>> pipeline = Arrays.asList(new Pair<>(warpTransform,0.9),
         		                                                   new Pair<>(rotateTransform1,0.9),
         		                                                   new Pair<>(rotateTransform2,0.9),
         		                                                   new Pair<>(rotateTransform3,0.9),
         		                                                   new Pair<>(scaleTransform,0.9));        
-        ImageTransform transform = new PipelineImageTransform(pipeline,shuffle);       
+                ImageTransform transform = new PipelineImageTransform(pipeline,shuffle);       
         
 		ImageRecordReader trainRecordReader = new ImageRecordReader(params.getHeight(), 
 				                                                    params.getWidth(), 
@@ -125,19 +125,19 @@ public class Segmentation {
 				                                                        params.getLabelIndex(), 
 				                                                        true); // true arg just means "don't try to convert label to a one-hot array" like we need for classification			
 		scaler.fit(trainDataIter);
-        trainDataIter.setPreProcessor(scaler); 
+                trainDataIter.setPreProcessor(scaler); 
                
-        DataSetIterator testDataIter = new RecordReaderDataSetIterator(testRecordReader, 
+                DataSetIterator testDataIter = new RecordReaderDataSetIterator(testRecordReader, 
         		                                                       params.getBatch(), 
         		                                                       params.getLabelIndex(), 
         		                                                       params.getLabelIndex(), 
         		                                                       true);
-        scaler.fit(testDataIter);       
-        testDataIter.setPreProcessor(scaler);
+                scaler.fit(testDataIter);       
+                testDataIter.setPreProcessor(scaler);
 		
 		// Building model...        
-        log.info("Building model....");        
-        ComputationGraph network;
+                log.info("Building model....");        
+                ComputationGraph network;
 		String modelFilename = "segmentationU-netModel.zip";
 		
 		if (new File(modelFilename).exists()) {
@@ -149,7 +149,7 @@ public class Segmentation {
 			network.init();
 			log.info(network.summary(InputType.convolutional(params.getHeight(), params.getWidth(), params.getChannels())));
         	
-		    //Configuring early stopping
+		        //Configuring early stopping
 			EarlyStoppingConfiguration<ComputationGraph> esConf = new EarlyStoppingConfiguration.Builder<ComputationGraph>()
 					.epochTerminationConditions(new MaxEpochsTerminationCondition(params.getEpochs()))
 					.iterationTerminationConditions(new MaxTimeIterationTerminationCondition(params.getMaxTimeIterTerminationCondition(), TimeUnit.HOURS))
@@ -164,18 +164,18 @@ public class Segmentation {
 			log.info("Training model....");
 			EarlyStoppingResult<ComputationGraph> result = trainer.fit();
 	        
-	        // Saving the best model...	        
-	        log.info("Saving the best model....");
-	        //Get the best model:
-	        network = result.getBestModel();
-	        if (save) {
-	        	ModelSerializer.writeModel(network, modelFilename, true);
-	        }
-	        System.out.println();
-	        log.info("The best model has been saved....");
-	        System.out.println();
+	                // Saving the best model...	        
+	                log.info("Saving the best model....");
+	                //Get the best model:
+	                network = result.getBestModel();
+	                if (save) {
+	        	       ModelSerializer.writeModel(network, modelFilename, true);
+	                }
+	                System.out.println();
+	                log.info("The best model has been saved....");
+	                System.out.println();
 	        
-	        //Getting the results...
+	                //Getting the results...
 			System.out.println("Termination reason: " + result.getTerminationReason());
 			System.out.println("Termination details: " + result.getTerminationDetails());
 			System.out.println("Total epochs: " + result.getTotalEpochs());

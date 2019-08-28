@@ -31,6 +31,7 @@ public class Params {
 	
 	// Parameters for the training phase
 	private int epochs = 100;
+	protected static int maxTimeIterTerminationCondition = 48; // 48 hours
 	private int batch = 1; // batch is reduced to a single image (Training section of the paper)
 	
 	// Parameters for input/output data
@@ -75,6 +76,10 @@ public class Params {
 	public int getEpochs() {
 		return epochs;
 	}
+	
+	public int getMaxTimeIterTerminationCondition() {
+ 		return maxTimeIterTerminationCondition;
+ 	}
 	
 	public int getBatch() {
 		return batch ;
